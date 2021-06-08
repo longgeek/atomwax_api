@@ -1,0 +1,54 @@
+[default]
+
+#
+# Http token auth
+#
+token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+
+#
+# Github Personal access tokens: https://github.com/settings/tokens
+#
+github_token = 69ea63aa903e62f3db14363c33c6de5d2b227d74
+
+[log]
+
+#
+# Options defined in atomwax_api log
+#
+
+# Print debugging output (set logging level to DEBUG instead
+# of default WARNING level). (boolean value)
+debug = true
+
+# Print more verbose output (set logging level to INFO instead
+# of default WARNING level). (boolean value)
+verbose = true
+
+# set, logging will go to stdout. (string value)
+log_file = atomwax_api.log
+
+# paths (string value)
+log_dir=/var/log/atomwax_api
+
+
+[redis]
+
+#
+# atomwax_api defined in Redis
+#
+
+# The Redis broker address where a single node is used
+# (string value)
+redis_host = dc-manager01
+
+# The Redis broker port where a single node is used
+# (integer value)
+redis_port = 6379
+
+# the Redis databased number
+# (integer value)
+redis_dbid = 0
+
+# the Redis databased password
+# (string value)
+redis_pass = YCTACMmimohBBiZRanibCnjJV8zdnwGs
