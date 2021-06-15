@@ -13,7 +13,7 @@ from .config import TOKEN
 
 parser = reqparse.RequestParser(bundle_errors=True)
 parser.add_argument("action", type=str, location="json", required=True)
-parser.add_argument("params", type=dict, location="json", required=True)
+parser.add_argument("params", type=dict, location="json", required=False)
 
 
 class APIView(Resource):
@@ -30,7 +30,7 @@ class APIView(Resource):
 
         args = parser.parse_args()
         action = args["action"]
-        params = args["params"]
+        params = args["params"] or {}
 
         if "Message" not in action:
             app.logger.info("action = %s\nparams = %s" % (action, params))

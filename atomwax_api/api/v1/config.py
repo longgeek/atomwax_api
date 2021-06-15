@@ -19,6 +19,9 @@ API_ACTIONS = {
         "Scan": {
             "action": ("project", "scan", "scan"),
         },
+        "List": {
+            "action": ("project", "list", "list"),
+        },
     },
 }
 

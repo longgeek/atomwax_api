@@ -8,12 +8,13 @@
 Flask based.
 """
 
+import json
 from flask import Flask
 from flask import jsonify
 from flask_restful import Api
 from flask_redis import FlaskRedis
 from werkzeug.middleware.proxy_fix import ProxyFix
-
+from atomwax_api.project_list import project_list
 
 # Flask Service App
 app = Flask(__name__)
@@ -22,7 +23,11 @@ app.config.from_object("atomwax_api.settings.LogConfig")
 app.config.from_object("atomwax_api.settings.RedisConfig")
 
 # Redis Service
-redis_store = FlaskRedis(app)
+# 初始化项目数据结构到 Redis
+redis_store = FlaskRedis(app, decode_responses=True)
+if len(redis_store.lrange("project_list", 0, -1)) == 0:
+    for project in project_list:
+        redis_store.rpush("project_list", json.dumps(project))
 
 # API Service config
 from atomwax_api.api.v1 import controller as v1
