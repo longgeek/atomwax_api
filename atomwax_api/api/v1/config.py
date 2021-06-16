@@ -22,6 +22,9 @@ API_ACTIONS = {
         "List": {
             "action": ("project", "list", "list"),
         },
+        "Detail": {
+            "action": ("project", "detail", "detail"),
+        },
     },
 }
 

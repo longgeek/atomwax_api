@@ -3,13 +3,14 @@
 # Author: Longgeek <longgeek@gmail.com>
 
 import json
+from atomwax_api import redis_store
 
 
 def list():
-    """列出所有项目"""
+    """ 列出所有项目 """
 
-    f = open('/opt/list.json')
-    rsp = json.loads(f.read())
-    f.close()
+    rsp = []
+    project_list = redis_store.lrange("project_list", 0, -1)
+    rsp = [json.loads(r) for r in project_list]
 
-    return (0, "done", rsp)
+    return (0, "", rsp)
