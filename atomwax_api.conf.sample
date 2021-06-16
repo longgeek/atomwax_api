@@ -8,7 +8,13 @@ token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
 #
 # Github Personal access tokens: https://github.com/settings/tokens
 #
-github_token = 69ea63aa903e62f3db14363c33c6de5d2b227d74
+github_token = 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
+
+#
+# Gitee Personal access tokens: https://gitee.com/profile/personal_access_tokens
+#
+gitee_token = 69ea63aa903e62f3db14363c33c6de5d2b227d74
+
 
 [log]
 
@@ -39,7 +45,7 @@ log_dir=/var/log/atomwax_api
 
 # The Redis broker address where a single node is used
 # (string value)
-redis_host = dc-manager01
+redis_host = 127.0.0.1
 
 # The Redis broker port where a single node is used
 # (integer value)
@@ -51,4 +57,4 @@ redis_dbid = 0
 
 # the Redis databased password
 # (string value)
-redis_pass = YCTACMmimohBBiZRanibCnjJV8zdnwGs
+redis_pass =
