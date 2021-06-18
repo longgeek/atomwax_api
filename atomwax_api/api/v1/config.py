@@ -16,9 +16,6 @@ TOKEN_HEADERS = {
 # API Actions
 API_ACTIONS = {
     "Project": {
-        "Scan": {
-            "action": ("project", "scan", "scan"),
-        },
         "List": {
             "action": ("project", "list", "list"),
         },
