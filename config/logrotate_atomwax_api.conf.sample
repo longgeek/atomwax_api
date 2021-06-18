@@ -1,0 +1,20 @@
+/var/log/atomwax_api/output.log {
+    daily
+    rotate 30
+    missingok
+    compress
+    minsize 100k
+    dateext
+    copytruncate
+    notifempty
+}
+/var/log/atomwax_api/errors.log {
+    daily
+    rotate 30
+    missingok
+    compress
+    minsize 100k
+    dateext
+    copytruncate
+    notifempty
+}

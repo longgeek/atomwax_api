@@ -1,6 +1,8 @@
 requests==2.13.0
 ConfigParser==4.0.2
 simplejson
+gunicorn
+gevent==21.1.2
 
 # Flask
 Flask==1.1.2
