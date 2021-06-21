@@ -93,6 +93,7 @@ class Run(object):
         # 遍历所有 commits 并 push 到 redis 新 key 中
         # 同时统计贡献者排名
         contributors = {}
+        contributors_last = {}
         for commit in cc.fetch():
             self.conn.rpush(repo['name'] + '-commits-new', json.dumps(commit))
 
@@ -102,13 +103,15 @@ class Run(object):
                 contributors[author] += 1
             else:
                 contributors[author] = 1
+            contributors_last[author] = commit['updated_on']
 
         # 转化贡献者数据格式，通过提交次数进行排名
         contributors = sorted(contributors.items(),
                               key=lambda d: d[1], reverse=True)
         # 写入排名到 redis
         for con in contributors:
-            self.conn.rpush(repo['name'] + '-contributors-new', json.dumps(con))
+            rank = con.append(contributors_last[con[0]])
+            self.conn.rpush(repo['name'] + '-contributors-new', json.dumps(rank))
 
         # 更 commits 数据
         self.conn.delete(repo['name'] + '-commits')
@@ -295,8 +298,8 @@ class Run(object):
 
 if __name__ == "__main__":
     run = Run()
-    repo = json.loads(run.repos[2])
+    repo = json.loads(run.repos[0])
     run.commit(repo)
-    run.issue_and_pr(repo)
-    run.cloc(repo)
-    run.gitee_stat(repo)
+    # run.issue_and_pr(repo)
+    # run.cloc(repo)
+    # run.gitee_stat(repo)

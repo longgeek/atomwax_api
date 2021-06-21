@@ -22,6 +22,30 @@ API_ACTIONS = {
         "Detail": {
             "action": ("project", "detail", "detail"),
         },
+        "DetailCommits": {
+            "action": ("project", "detail", "commits"),
+        },
+        "DetailCommitsChart": {
+            "action": ("project", "detail", "commits_chart"),
+        },
+        "DetailCloc": {
+            "action": ("project", "detail", "cloc"),
+        },
+        "DetailIssue": {
+            "action": ("project", "detail", "issue"),
+        },
+        "DetailIssueChart": {
+            "action": ("project", "detail", "issue_chart"),
+        },
+        "DetailContributors": {
+            "action": ("project", "detail", "contributors"),
+        },
+        "DetailPullRequests": {
+            "action": ("project", "detail", "pull_requests"),
+        },
+        "DetailPullRequestsChart": {
+            "action": ("project", "detail", "pull_requests_chart"),
+        },
     },
 }
 
