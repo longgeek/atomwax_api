@@ -82,12 +82,12 @@ class Run(object):
         if not repo['repo']:
             return
 
-        git_path = '/tmp/commit'
+        git_path = '/tmp/%s' % repo['name']
         if os.path.exists(git_path):
             shutil.rmtree(git_path)
 
         # Cocom object initialization
-        cc = CoCom(uri=repo['repo'], git_path='/tmp/commit')
+        cc = CoCom(uri=repo['repo'], git_path=git_path)
 
         # fetch 项目所有的 commits
         # 遍历所有 commits 并 push 到 redis 新 key 中
