@@ -24,10 +24,27 @@ app.config.from_object("atomwax_api.settings.RedisConfig")
 
 # Redis Service
 # 初始化项目数据结构到 Redis
+key = "project_list"
 redis_store = FlaskRedis(app, decode_responses=True)
-if len(redis_store.lrange("project_list", 0, -1)) == 0:
+
+if redis_store.llen(key) == 0:
     for project in project_list:
-        redis_store.rpush("project_list", json.dumps(project))
+        redis_store.rpush(key, json.dumps(project))
+else:
+    repos = redis_store.lrange(key, 0, -1)
+    for i in range(len(project_list)):
+        if redis_store.llen(key) > i:
+            repo = json.loads(repos[i])
+            project_list[i]["watch"] = repo["watch"]
+            project_list[i]["star"] = repo["star"]
+            project_list[i]["fork"] = repo["fork"]
+            project_list[i]["issue"] = repo["issue"]
+            project_list[i]["commits"] = repo["commits"]
+            project_list[i]["pull_requests"] = repo["pull_requests"]
+            project_list[i]["contributors"] = repo["contributors"]
+            project_list[i]["line_of_code"] = repo["line_of_code"]
+        redis_store.rpush(key + "-new", json.dumps(project_list[i]))
+    redis_store.rename(key + "-new", key)
 
 # API Service config
 from atomwax_api.api.v1 import controller as v1

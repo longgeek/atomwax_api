@@ -79,10 +79,10 @@ class Run(object):
     def commit(self, repo):
         """ 使用 graal 工具获取项目所有 commits 和 contributors """
 
-        if not repo['repo']:
+        if not repo.get('repo'):
             return
 
-        git_path = '/tmp/%s' % repo['name']
+        git_path = '/tmp/%s' % repo['name'].replace(' ', '-')
         if os.path.exists(git_path):
             shutil.rmtree(git_path)
 
@@ -110,7 +110,7 @@ class Run(object):
                               key=lambda d: d[1], reverse=True)
         # 写入排名到 redis
         for con in contributors:
-            rank = con.append(contributors_last[con[0]])
+            rank = con + (contributors_last[con[0]],)
             self.conn.rpush(repo['name'] + '-contributors-new', json.dumps(rank))
 
         # 更 commits 数据
@@ -138,7 +138,7 @@ class Run(object):
         使用 perceval github 和 perceval gitee 模块
         """
 
-        if not repo['repo']:
+        if not repo.get('repo'):
             return
 
         # create a Git object, pointing to repo_url, using repo_dir for cloning
@@ -150,7 +150,7 @@ class Run(object):
         else:
             data = Gitee(owner=repo['repo'].split('/')[-2],
                          repository=repo['repo'].split('/')[-1],
-                         api_token=self.github_token.split(','),
+                         api_token=self.gitee_token.split(','),
                          sleep_for_rate=True)
         # fetch all issues/pull requests as an iterator, and iterate it printing
         # their number, and whether they are issues or pull requests
@@ -187,10 +187,10 @@ class Run(object):
     def cloc(self, repo):
         """ 统计项目代码行数 """
 
-        if not repo['repo']:
+        if not repo.get('repo'):
             return
 
-        git_path = '/tmp/%s' % repo['name']
+        git_path = '/tmp/%s' % repo['name'].replace(' ', '-')
         if os.path.exists(git_path):
             shutil.rmtree(git_path)
 
@@ -216,7 +216,7 @@ class Run(object):
     def gitee_stat(self, repo):
         """ 获取 gitee 项目统计信息 """
 
-        if not repo['org']:
+        if not repo.get('org'):
             return
 
         owner = repo['org'].split('/')[-1]
@@ -299,7 +299,7 @@ class Run(object):
 if __name__ == "__main__":
     run = Run()
     repo = json.loads(run.repos[0])
-    run.commit(repo)
-    # run.issue_and_pr(repo)
-    # run.cloc(repo)
-    # run.gitee_stat(repo)
+    # run.commit(repo)
+    run.issue_and_pr(repo)
+    run.cloc(repo)
+    run.gitee_stat(repo)
