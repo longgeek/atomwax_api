@@ -169,6 +169,7 @@ class Run(object):
         pro['contributors'] = len(contributors)
         pro = json.dumps(pro)
         self.conn.lset(key, index, pro)
+        shutil.rmtree(git_path)
 
     def issue_and_pr(self, repo):
         """ 获取项目的 issue 和 pull requests
