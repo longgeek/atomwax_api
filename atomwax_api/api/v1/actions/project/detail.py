@@ -139,8 +139,12 @@ def pull_requests_chart(project):
     pull_requests = [json.loads(p) for p in pull_requests]
 
     for pull in pull_requests:
-        format = "%Y-%m-%dT%H:%M:%SZ"
-        date = pull['data']['created_at']
+        if 'created_at' in pull:
+            date = pull['created_at']
+            format = "%Y-%m-%dT%H:%M:%S%z"
+        else:
+            date = pull['data']['created_at']
+            format = "%Y-%m-%dT%H:%M:%SZ"
         pull_time = datetime.strptime(date, format)
 
         if not chart.get(pull_time.year):

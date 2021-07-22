@@ -178,6 +178,9 @@ class Run(object):
         使用 perceval github 和 perceval gitee 模块
         """
 
+        self.conn.delete(repo['name'] + '-issue-new')
+        self.conn.delete(repo['name'] + '-pull-requests-new')
+
         if not repo.get('repo'):
             return
 
@@ -192,12 +195,35 @@ class Run(object):
                          repository=repo['repo'].split('/')[-1],
                          api_token=self.gitee_token.split(','),
                          sleep_for_rate=True)
+
+            # 通过 gitee pr 列表来获取 pr
+            page = 0
+            rsp = requests.get(
+                "https://gitee.com/api/v5/repos/%s/%s/pulls" % (repo['parent'],
+                                                                repo['name']),
+                params={'page': 1, 'per_page': 100,
+                        'state': 'all', 'access_token': self.gitee_token}
+            )
+            total_page = int(rsp.headers['total_page'])
+
+            for i in range(total_page):
+                page += 1
+                rsp = requests.get(
+                    "https://gitee.com/api/v5/repos/%s/%s/pulls" % (repo['parent'],
+                                                                    repo['name']),
+                    params={'page': page, 'per_page': 100,
+                            'state': 'all', 'access_token': self.gitee_token}
+                )
+                total_page = rsp.headers['total_page']
+                pulls = json.loads(rsp.content)
+                for pr in pulls:
+                    self.conn.rpush(repo['name'] + '-pull-requests-new',
+                                    json.dumps(pr))
+
         # fetch all issues/pull requests as an iterator, and iterate it printing
         # their number, and whether they are issues or pull requests
-        self.conn.delete(repo['name'] + '-issue-new')
-        self.conn.delete(repo['name'] + '-pull-requests-new')
         for item in data.fetch():
-            if 'pull_request' in item['data']:
+            if 'pull_request' in item['data'] and 'gitee' not in repo['repo']:
                 self.conn.rpush(repo['name'] + '-pull-requests-new',
                                 json.dumps(item))
             else:
@@ -226,7 +252,6 @@ class Run(object):
         pro = json.loads(pro)
         pro['issue'] = self.conn.llen(repo['name'] + '-issue')
         pro['pull_requests'] = self.conn.llen(repo['name'] + '-pull-requests')
-        print(pro['pull_requests'])
         pro = json.dumps(pro)
         self.conn.lset(key, index, pro)
 
@@ -347,7 +372,6 @@ class Run(object):
             pull_requests += int(rsp.headers['total_count'])
 
             # 写入每个项目的统计信息到 Redis
-            print(project)
             project["pull_requests"] = int(rsp.headers['total_count'])
             self.conn.rpush(repo['name'] + '-projects-list-new',
                             json.dumps(project))
@@ -371,16 +395,15 @@ class Run(object):
         """ 多线程跑收集子项目数据 """
 
         repos = self.conn.lrange(repo["name"] + "-projects-list", 0, -1)
-        pool = ThreadPool(10)
+        pool = ThreadPool(100)
         pool.map(self._gitee_children_stat, repos)
         pool.close()
         pool.join()
 
     def _gitee_children_stat(self, project):
         project = json.loads(project)
-        print(project)
         # self.commit(project)
-        # self.issue_and_pr(project)
+        self.issue_and_pr(project)
         # self.cloc(project)
 
     def gitee_children_stat_summer(self, repo):
@@ -414,5 +437,5 @@ if __name__ == "__main__":
     # run.issue_and_pr(repo)
     # run.cloc(repo)
     # run.gitee_stat(repo)
-    # run.gitee_children_stat(repo)
+    run.gitee_children_stat(repo)
     # run.gitee_children_stat_summer(repo)
