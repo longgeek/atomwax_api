@@ -125,6 +125,7 @@ class Run(object):
         # 同时统计贡献者排名
         contributors = {}
         contributors_last = {}
+        self.conn.delete(repo['name'] + '-commits-new')
         for commit in cc.fetch():
             self.conn.rpush(repo['name'] + '-commits-new', json.dumps(commit))
 
@@ -140,6 +141,7 @@ class Run(object):
         contributors = sorted(contributors.items(),
                               key=lambda d: d[1], reverse=True)
         # 写入排名到 redis
+        self.conn.delete(repo['name'] + '-contributors-new')
         for con in contributors:
             rank = con + (contributors_last[con[0]],)
             self.conn.rpush(repo['name'] + '-contributors-new', json.dumps(rank))
@@ -192,9 +194,9 @@ class Run(object):
                          sleep_for_rate=True)
         # fetch all issues/pull requests as an iterator, and iterate it printing
         # their number, and whether they are issues or pull requests
+        self.conn.delete(repo['name'] + '-issue-new')
+        self.conn.delete(repo['name'] + '-pull-requests-new')
         for item in data.fetch():
-            print(item)
-            print()
             if 'pull_request' in item['data']:
                 self.conn.rpush(repo['name'] + '-pull-requests-new',
                                 json.dumps(item))
@@ -224,6 +226,7 @@ class Run(object):
         pro = json.loads(pro)
         pro['issue'] = self.conn.llen(repo['name'] + '-issue')
         pro['pull_requests'] = self.conn.llen(repo['name'] + '-pull-requests')
+        print(pro['pull_requests'])
         pro = json.dumps(pro)
         self.conn.lset(key, index, pro)
 
@@ -405,7 +408,7 @@ class Run(object):
 
 if __name__ == "__main__":
     run = Run()
-    run.sync_project()
+    # run.sync_project()
     repo = json.loads(run.repos[2])
     # run.commit(repo)
     # run.issue_and_pr(repo)
