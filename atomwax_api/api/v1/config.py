@@ -22,6 +22,9 @@ API_ACTIONS = {
         "Detail": {
             "action": ("project", "detail", "detail"),
         },
+        "DetailRepo": {
+            "action": ("project", "detail", "detail_repo"),
+        },
         "DetailCommits": {
             "action": ("project", "detail", "commits"),
         },
@@ -45,6 +48,9 @@ API_ACTIONS = {
         },
         "DetailPullRequestsChart": {
             "action": ("project", "detail", "pull_requests_chart"),
+        },
+        "DetailProjectList": {
+            "action": ("project", "detail", "project_list"),
         },
     },
 }

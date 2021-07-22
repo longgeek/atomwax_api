@@ -19,6 +19,7 @@ class DefaultConfig(object):
 
     try:
         TOKEN = cfg.get(_option, "token")
+        GITEE_TOKEN = cfg.get(_option, "gitee_token")
         GITHUB_TOKEN = cfg.get(_option, "github_token")
     except Exception as e:
         exit(err + str(e) + "\n")

@@ -8,9 +8,13 @@ import requests
 import subprocess
 import configparser
 
+from project_list import project_list
+
 from graal.backends.core.cocom import CoCom
 from perceval.backends.core.gitee import Gitee
 from perceval.backends.core.github import GitHub
+
+from multiprocessing.dummy import Pool as ThreadPool
 
 
 # 读取配置文件
@@ -69,11 +73,38 @@ class Run(object):
         self.gitee_token = cfg.get('default', 'gitee_token')
         self.github_token = cfg.get('default', 'github_token')
 
-    def get_project(self, project):
+    def sync_project(self):
+        # 初始化项目数据结构到 Redis
+        key = "project_list"
+        self.conn.delete(key + "-new")
+
+        if self.conn.llen(key) == 0:
+            for project in project_list:
+                self.conn.rpush(key, json.dumps(project))
+        else:
+            repos = self.conn.lrange(key, 0, -1)
+            for i in range(len(project_list)):
+                if self.conn.llen(key) > i:
+                    repo = json.loads(repos[i])
+                    project_list[i]["watch"] = repo["watch"]
+                    project_list[i]["star"] = repo["star"]
+                    project_list[i]["fork"] = repo["fork"]
+                    project_list[i]["issue"] = repo["issue"]
+                    project_list[i]["commits"] = repo["commits"]
+                    project_list[i]["pull_requests"] = repo["pull_requests"]
+                    project_list[i]["contributors"] = repo["contributors"]
+                    project_list[i]["line_of_code"] = repo["line_of_code"]
+                self.conn.rpush(key + "-new", json.dumps(project_list[i]))
+            self.conn.rename(key + "-new", key)
+
+    def get_project(self, repo, children=False):
         """ 获取 project 在 redis 中的索引 """
 
-        for i in range(len(self.repos)):
-            if json.loads(self.repos[i])['name'] == project:
+        key = self.repos
+        if children:
+            key = self.conn.lrange(repo['parent'] + '-projects-list', 0, -1)
+        for i in range(len(key)):
+            if json.loads(key[i])['name'] == repo['name']:
                 return i
 
     def commit(self, repo):
@@ -125,13 +156,19 @@ class Run(object):
                              repo['name'] + '-contributors')
 
         # 更新 project_list 数据
-        index = self.get_project(repo['name'])
-        pro = self.conn.lindex("project_list", index)
+        # 需要判断是否有子项目
+        key = 'project_list'
+        index = self.get_project(repo)
+        if repo.get('parent'):
+            key = repo['parent'] + '-projects-list'
+            index = self.get_project(repo, True)
+
+        pro = self.conn.lindex(key, index)
         pro = json.loads(pro)
         pro['commits'] = self.conn.llen(repo['name'] + '-commits')
         pro['contributors'] = len(contributors)
         pro = json.dumps(pro)
-        self.conn.lset("project_list", index, pro)
+        self.conn.lset(key, index, pro)
 
     def issue_and_pr(self, repo):
         """ 获取项目的 issue 和 pull requests
@@ -176,13 +213,18 @@ class Run(object):
                              repo['name'] + '-pull-requests')
 
         # 更新 project_list 数据
-        index = self.get_project(repo['name'])
-        pro = self.conn.lindex("project_list", index)
+        # 需要判断是否有子项目
+        key = 'project_list'
+        index = self.get_project(repo)
+        if repo.get('parent'):
+            key = repo['parent'] + '-projects-list'
+            index = self.get_project(repo, True)
+        pro = self.conn.lindex(key, index)
         pro = json.loads(pro)
         pro['issue'] = self.conn.llen(repo['name'] + '-issue')
         pro['pull_requests'] = self.conn.llen(repo['name'] + '-pull-requests')
         pro = json.dumps(pro)
-        self.conn.lset("project_list", index, pro)
+        self.conn.lset(key, index, pro)
 
     def cloc(self, repo):
         """ 统计项目代码行数 """
@@ -204,17 +246,25 @@ class Run(object):
         self.conn.set(repo['name'] + '-cloc', out)
 
         # 更新 project_list 数据
-        index = self.get_project(repo['name'])
-        pro = self.conn.lindex("project_list", index)
+        # 需要判断是否有子项目
+        key = 'project_list'
+        index = self.get_project(repo)
+        if repo.get('parent'):
+            key = repo['parent'] + '-projects-list'
+            index = self.get_project(repo, True)
+        pro = self.conn.lindex(key, index)
         pro = json.loads(pro)
         code_num = json.loads(self.conn.get(repo['name'] + '-cloc'))
         code_num = code_num['SUM']['code']
         pro['line_of_code'] = code_num
         pro = json.dumps(pro)
-        self.conn.lset("project_list", index, pro)
+        self.conn.lset(key, index, pro)
 
     def gitee_stat(self, repo):
-        """ 获取 gitee 项目统计信息 """
+        """ 获取 gitee 项目统计信息
+
+        同时遍历 owner 下所有仓数据
+        """
 
         if not repo.get('org'):
             return
@@ -252,6 +302,7 @@ class Run(object):
         follower += int(rsp.headers['total_count'])
 
         # 遍历所有项目
+        self.conn.delete(repo['name'] + '-projects-list-new')
         for re in repos:
             # star fork watch
             rsp = requests.get(
@@ -262,6 +313,14 @@ class Run(object):
             fork += rsp['forks_count']
             star += rsp['stargazers_count']
             watch += rsp['watchers_count']
+            project = {
+                "name": re,
+                "parent": repo['name'],
+                "repo": repo['org'] + "/" + re,
+                "fork": rsp['forks_count'],
+                "star": rsp['stargazers_count'],
+                "watch": rsp['watchers_count'],
+            }
 
             # issue
             rsp = requests.get(
@@ -272,6 +331,7 @@ class Run(object):
                         'per_page': 1, 'access_token': self.gitee_token}
             )
             issue += int(rsp.headers['total_count'])
+            project["issue"] = int(rsp.headers['total_count'])
 
             # pull requests
             rsp = requests.get(
@@ -282,8 +342,16 @@ class Run(object):
             )
             pull_requests += int(rsp.headers['total_count'])
 
+            # 写入每个项目的统计信息到 Redis
+            print(project)
+            project["pull_requests"] = int(rsp.headers['total_count'])
+            self.conn.rpush(repo['name'] + '-projects-list-new',
+                            json.dumps(project))
+        self.conn.rename(repo['name'] + '-projects-list-new',
+                         repo['name'] + '-projects-list')
+
         # 写入到 Redis 中
-        index = self.get_project(repo['name'])
+        index = self.get_project(repo)
         pro = self.conn.lindex("project_list", index)
         pro = json.loads(pro)
         pro['fork'] = fork
@@ -295,11 +363,52 @@ class Run(object):
         pro = json.dumps(pro)
         self.conn.lset("project_list", index, pro)
 
+    def gitee_children_stat(self, repo):
+        """ 多线程跑收集子项目数据 """
+
+        repos = self.conn.lrange(repo["name"] + "-projects-list", 0, -1)
+        pool = ThreadPool(10)
+        pool.map(self._gitee_children_stat, repos)
+        pool.close()
+        pool.join()
+
+    def _gitee_children_stat(self, project):
+        project = json.loads(project)
+        print(project)
+        # self.commit(project)
+        # self.issue_and_pr(project)
+        # self.cloc(project)
+
+    def gitee_children_stat_summer(self, repo):
+        """ 汇总子项目数据到主项目中 """
+        repos = self.conn.lrange(repo["name"] + "-projects-list", 0, -1)
+        commits = contributors = line_of_code = 0
+        for project in repos:
+            project = json.loads(project)
+            commits += project.get('commits', 0)
+            contributors += project.get('contributors', 0)
+            line_of_code += project.get('line_of_code', 0)
+
+        # 更新 project_list 数据
+        # 需要判断是否有子项目
+        key = 'project_list'
+        index = self.get_project(repo)
+        pro = self.conn.lindex(key, index)
+        pro = json.loads(pro)
+        pro['commits'] = commits
+        pro['contributors'] = contributors
+        pro['line_of_code'] = line_of_code
+        pro = json.dumps(pro)
+        self.conn.lset(key, index, pro)
+
 
 if __name__ == "__main__":
     run = Run()
-    repo = json.loads(run.repos[0])
+    run.sync_project()
+    repo = json.loads(run.repos[2])
     # run.commit(repo)
-    run.issue_and_pr(repo)
-    run.cloc(repo)
-    run.gitee_stat(repo)
+    # run.issue_and_pr(repo)
+    # run.cloc(repo)
+    # run.gitee_stat(repo)
+    # run.gitee_children_stat(repo)
+    # run.gitee_children_stat_summer(repo)

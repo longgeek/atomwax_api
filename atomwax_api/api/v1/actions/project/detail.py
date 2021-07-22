@@ -3,6 +3,9 @@
 # Author: Longgeek <longgeek@gmail.com>
 
 import json
+import requests
+
+from atomwax_api import app
 from datetime import datetime
 from atomwax_api import redis_store
 
@@ -16,6 +19,19 @@ def detail(project):
         project_data = json.loads(redis_store.lindex("project_list", i))
         if project_data['name'] == project:
             rsp = project_data
+    return (0, "done", rsp)
+
+
+def detail_repo(project, repo):
+    """ 获取项目的子项目详情 """
+
+    # 获取子项目详情
+    length = redis_store.llen(project + "-projects-list")
+    for i in range(length):
+        repo_data = redis_store.lindex(project + "-projects-list", i)
+        repo_data = json.loads(repo_data)
+        if repo_data['name'] == repo:
+            rsp = repo_data
     return (0, "done", rsp)
 
 
@@ -83,7 +99,11 @@ def issue_chart(project):
             date = issue['data']['created_at']
         else:
             date = issue['created_at']
-        issue_time = datetime.strptime(date, format)
+        try:
+            issue_time = datetime.strptime(date, format)
+        except ValueError:
+            format = "%Y-%m-%dT%H:%M:%S%z"
+            issue_time = datetime.strptime(date, format)
 
         if not chart.get(issue_time.year):
             chart[issue_time.year] = {
@@ -131,3 +151,11 @@ def pull_requests_chart(project):
         else:
             chart[pull_time.year][pull_time.month - 1] += 1
     return (0, "done", chart)
+
+
+def project_list(project):
+    """ 获取项目下所有子项目列表 """
+
+    projects = redis_store.lrange(project + "-projects-list", 0, -1)
+    rsp = [json.loads(p) for p in projects]
+    return (0, "done", rsp)
